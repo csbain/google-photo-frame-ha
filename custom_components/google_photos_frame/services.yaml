@@ -1,0 +1,42 @@
+sync_now:
+  name: Sync Now
+  description: Trigger immediate sync of Google Photos album
+  fields: {}
+
+get_random_photo:
+  name: Get Random Photo
+  description: Get a random photo from the synced album
+  fields:
+    entry_id:
+      name: Entry ID
+      description: Optional config entry ID (uses first if not specified)
+      required: false
+      selector:
+        text:
+
+next_photo:
+  name: Next Photo
+  description: Advance to the next photo in the album
+  target:
+    entity:
+      integration: google_photos_frame
+      domain: camera
+
+previous_photo:
+  name: Previous Photo
+  description: Go to the previous photo in the album
+  target:
+    entity:
+      integration: google_photos_frame
+      domain: camera
+
+clear_cache:
+  name: Clear Cache
+  description: Clear cached photos from disk
+  fields:
+    entry_id:
+      name: Entry ID
+      description: Optional config entry ID (clears all if not specified)
+      required: false
+      selector:
+        text:

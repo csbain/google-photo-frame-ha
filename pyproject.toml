@@ -1,0 +1,18 @@
+[project]
+name = "google-photos-gallery-integration-home-assistant"
+version = "1.0.0"
+description = "Google Photos Gallery Integration for Home Assistant"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.pyright]
+extraPaths = ["."]
+reportMissingImports = false
+reportMissingModuleSource = false

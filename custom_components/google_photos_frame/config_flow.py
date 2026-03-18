@@ -1,0 +1,164 @@
+"""Config flow for Google Photos Frame integration."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import voluptuous as vol
+
+from homeassistant import config_entries
+from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import config_entry_oauth2_flow
+
+from .const import (
+    CONF_ALBUM_ID,
+    CONF_ALBUM_NAME,
+    CONF_DISPLAY_INTERVAL,
+    CONF_MAX_PHOTOS,
+    CONF_SHUFFLE_MODE,
+    CONF_SYNC_INTERVAL,
+    DEFAULT_ALBUM_NAME,
+    DEFAULT_DISPLAY_INTERVAL,
+    DEFAULT_MAX_PHOTOS,
+    DEFAULT_SHUFFLE_MODE,
+    DEFAULT_SYNC_INTERVAL,
+    DOMAIN,
+)
+
+
+class OAuth2FlowHandler(
+    config_entry_oauth2_flow.AbstractOAuth2FlowHandler,
+    domain=DOMAIN,
+):
+    """Config flow for Google Photos Frame using OAuth2."""
+
+    VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize flow."""
+        self._albums: list[dict] = []
+        self._client = None
+
+    @property
+    def logger(self) -> str:
+        """Return logger."""
+        return f"{DOMAIN}.config_flow"
+
+    async def async_oauth_create_entry(self, data: dict) -> FlowResult:
+        """Create entry from OAuth2 flow."""
+        # Store the OAuth token data
+        self._client = self.flow_impl.get_client(self.hass, data)
+
+        # Proceed to album selection
+        return await self.async_step_album()
+
+    async def async_step_album(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle album selection."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            if user_input.get("create_new"):
+                # Create new album
+                album_name = user_input.get("album_name", DEFAULT_ALBUM_NAME)
+                try:
+                    from .api import GooglePhotosFrameClient
+                    client = GooglePhotosFrameClient(self.hass, self._client)
+                    album = await client.async_create_album(album_name)
+                    return self.async_create_entry(
+                        title=f"Google Photos Frame ({album_name})",
+                        data={
+                            **self.token_data,
+                            CONF_ALBUM_ID: album["id"],
+                            CONF_ALBUM_NAME: album_name,
+                        },
+                    )
+                except Exception:
+                    errors["base"] = "cannot_create_album"
+            elif user_input.get("album_id"):
+                # Select existing album
+                album_name = next(
+                    (a["title"] for a in self._albums if a["id"] == user_input["album_id"]),
+                    DEFAULT_ALBUM_NAME
+                )
+                return self.async_create_entry(
+                    title=f"Google Photos Frame ({album_name})",
+                    data={
+                        **self.token_data,
+                        CONF_ALBUM_ID: user_input["album_id"],
+                        CONF_ALBUM_NAME: album_name,
+                    },
+                )
+            else:
+                errors["base"] = "no_album_selected"
+
+        # Fetch existing albums
+        try:
+            from .api import GooglePhotosFrameClient
+            client = GooglePhotosFrameClient(self.hass, self._client)
+            self._albums = await client.async_get_albums()
+        except Exception:
+            self._albums = []
+
+        album_options = {a["id"]: a["title"] for a in self._albums}
+
+        schema = vol.Schema({
+            vol.Optional("album_id"): vol.In(album_options) if album_options else str,
+            vol.Optional("create_new", default=True): bool,
+            vol.Optional("album_name", default=DEFAULT_ALBUM_NAME): str,
+        })
+
+        return self.async_show_form(
+            step_id="album",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"num_albums": str(len(self._albums))},
+        )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> OptionsFlowHandler:
+        """Get options flow."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Options flow for Google Photos Frame."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        options = self._config_entry.options
+
+        schema = vol.Schema({
+            vol.Optional(
+                CONF_SYNC_INTERVAL,
+                default=options.get(CONF_SYNC_INTERVAL, DEFAULT_SYNC_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
+            vol.Optional(
+                CONF_MAX_PHOTOS,
+                default=options.get(CONF_MAX_PHOTOS, DEFAULT_MAX_PHOTOS),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
+            vol.Optional(
+                CONF_DISPLAY_INTERVAL,
+                default=options.get(CONF_DISPLAY_INTERVAL, DEFAULT_DISPLAY_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=3600)),
+            vol.Optional(
+                CONF_SHUFFLE_MODE,
+                default=options.get(CONF_SHUFFLE_MODE, DEFAULT_SHUFFLE_MODE),
+            ): bool,
+        })
+
+        return self.async_show_form(step_id="init", data_schema=schema)

@@ -1,0 +1,13 @@
+{
+  "domain": "google_photos_frame",
+  "name": "Google Photo Frame",
+  "codeowners": ["@csbain"],
+  "config_flow": true,
+  "dependencies": ["application_credentials"],
+  "documentation": "https://github.com/csbain/google-photo-frame-ha",
+  "integration_type": "device",
+  "iot_class": "cloud_polling",
+  "loggers": ["google_photos_library_api"],
+  "requirements": ["google-photos-library-api>=1.0.1"],
+  "version": "1.0.0"
+}

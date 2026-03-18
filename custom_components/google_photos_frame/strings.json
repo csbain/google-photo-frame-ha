@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "Pick Authentication Method"
+      },
+      "album": {
+        "title": "Select Album",
+        "description": "Select an existing album or create a new one. Found {num_albums} app-created albums.",
+        "data": {
+          "album_id": "Existing Album",
+          "create_new": "Create New Album",
+          "album_name": "New Album Name"
+        }
+      }
+    },
+    "error": {
+      "cannot_create_album": "Failed to create album",
+      "no_album_selected": "Please select or create an album"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "oauth_error": "OAuth authentication failed"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Google Photos Frame Options",
+        "data": {
+          "sync_interval": "Sync Interval (minutes)",
+          "max_photos": "Maximum Photos to Store"
+        }
+      }
+    }
+  }
+}
