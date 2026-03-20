@@ -26,7 +26,8 @@
       "already_configured": "Account is already configured",
       "oauth_error": "OAuth authentication failed",
       "reconfigure_successful": "Re-configuration was successful",
-      "no_albums": "No albums available to select"
+      "no_albums": "No albums available to select",
+      "missing_configuration": "The Google Photos Frame integration requires OAuth2 credentials. Please add your Google Cloud OAuth2 credentials in Settings > Devices & Services > Application Credentials, then try again."
     }
   },
   "options": {

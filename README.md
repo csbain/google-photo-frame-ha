@@ -38,23 +38,71 @@ A Home Assistant integration that syncs photos from Google Photos to local stora
 
 ## Configuration
 
-### Google Cloud Setup
+### Step 1: Create Google Cloud OAuth2 Credentials
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable the Photos Library API
-4. Create OAuth2 credentials (Web application)
-5. Add authorized redirect URI: `https://my.home-assistant.io/redirect/oauth`
-6. Copy Client ID and Client Secret
+This integration requires your own Google Cloud OAuth2 credentials because it accesses your personal Google Photos. Each user must create their own credentials (this is the standard pattern for Home Assistant Google integrations).
 
-### Home Assistant Setup
+1. **Go to [Google Cloud Console](https://console.cloud.google.com/)**
 
-1. Go to Settings → Devices & Services
-2. Click "Add Integration"
+2. **Create a new project** (or select an existing one)
+   - Click the project dropdown at the top → "New Project"
+   - Name it something like "Home Assistant Photos"
+   - Click "Create"
+
+3. **Enable the Photos Library API**
+   - Go to "APIs & Services" → "Library" (in the left sidebar)
+   - Search for "Photos Library API"
+   - Click on it → Click "Enable"
+
+4. **Configure OAuth Consent Screen** (required before creating credentials)
+   - Go to "APIs & Services" → "OAuth consent screen"
+   - Select "External" user type → Click "Create"
+   - Fill in required fields:
+     - **App name**: "Home Assistant Photos Frame" (or any name you like)
+     - **User support email**: Your email address
+     - **App logo**: (optional, can skip)
+     - **App domain**: (optional, can skip all)
+     - **Developer contact email**: Your email address
+   - Click "Save and Continue"
+   - **Scopes**: Click "Save and Continue" (use defaults)
+   - **Test users**: Add your own Google email address
+   - Click "Save and Continue" → "Back to Dashboard"
+
+5. **Create OAuth2 Credentials**
+   - Go to "APIs & Services" → "Credentials"
+   - Click "Create Credentials" → "OAuth client ID"
+   - Application type: **Web application**
+   - Name: "Home Assistant" (or any name)
+   - Under "Authorized redirect URIs", click "Add URI" and enter:
+     ```
+     https://my.home-assistant.io/redirect/oauth
+     ```
+   - Click "Create"
+   - **Important**: Copy your **Client ID** and **Client Secret** - you'll need these
+
+### Step 2: Add Credentials to Home Assistant
+
+Before adding the integration, you must register your OAuth2 credentials in Home Assistant:
+
+1. In Home Assistant, go to **Settings** → **Devices & Services**
+2. Click **Application Credentials** in the left sidebar (or scroll to the bottom)
+3. Click **Add Application Credential** (blue button)
+4. Fill in the form:
+   - **Application**: Select "Google Photos Frame" from the dropdown
+   - **Client ID**: Paste your Google Cloud Client ID
+   - **Client Secret**: Paste your Google Cloud Client Secret
+5. Click **Submit**
+
+### Step 3: Add the Integration
+
+1. Go to **Settings** → **Devices & Services**
+2. Click **Add Integration** (blue button, bottom right)
 3. Search for "Google Photos Frame"
-4. Enter your Google Cloud OAuth2 credentials when prompted
-5. Authorize with Google
-6. Select or create an album for your photo frame
+4. Click on it to start setup
+5. You'll be redirected to Google to authorize access
+6. Sign in with your Google account and grant permissions
+7. Select an existing album or create a new one for your photo frame
+8. Click **Submit** to complete setup
 
 ## Entities
 

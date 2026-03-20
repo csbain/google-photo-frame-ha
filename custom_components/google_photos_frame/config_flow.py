@@ -45,6 +45,18 @@ class OAuth2FlowHandler(
         """Return logger."""
         return f"{DOMAIN}.config_flow"
 
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the initial step."""
+        return await self.async_step_pick_implementation()
+
+    async def async_step_pick_implementation(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the pick implementation step."""
+        return await self.async_oauth_pick_implementation(user_input)
+
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> FlowResult:
         """Create entry from OAuth2 flow."""
         # Store the OAuth token data
