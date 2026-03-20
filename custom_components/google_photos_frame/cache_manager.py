@@ -26,7 +26,7 @@ from .const import (
     PHOTOS_DIR,
     STORAGE_DIR,
 )
-from .coordinator import MediaItem
+from .models import MediaItem
 
 if TYPE_CHECKING:
     from . import GooglePhotosFrameConfigEntry

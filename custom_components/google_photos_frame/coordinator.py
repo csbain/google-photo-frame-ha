@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import GooglePhotosFrameClient
 from .issue_handler import async_create_auth_issue, async_delete_auth_issue
 from .cache_manager import CacheManager
+from .models import AlbumData, MediaItem
 from .const import (
     CONF_ALBUM_ID,
     CONF_MAX_PHOTOS,
@@ -37,30 +38,6 @@ if TYPE_CHECKING:
     from . import GooglePhotosFrameConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class MediaItem:
-    """Represents a synced media item."""
-
-    id: str
-    filename: str
-    local_path: str
-    width: int | None
-    height: int | None
-    creation_time: str | None
-    url: str | None = None  # Download URL for on-demand fetching
-
-
-@dataclass
-class AlbumData:
-    """Data stored by the coordinator."""
-
-    album_id: str
-    album_name: str
-    media_items: list[MediaItem] = field(default_factory=list)
-    last_sync: str | None = None
-    media_count: int = 0
 
 
 class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):

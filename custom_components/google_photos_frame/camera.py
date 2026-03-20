@@ -15,7 +15,8 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
     from . import GooglePhotosFrameConfigEntry
-    from .coordinator import GooglePhotosFrameCoordinator, MediaItem
+    from .coordinator import GooglePhotosFrameCoordinator
+    from .models import MediaItem
 
 _LOGGER = logging.getLogger(__name__)
 
