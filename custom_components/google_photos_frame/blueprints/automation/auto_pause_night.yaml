@@ -1,0 +1,56 @@
+blueprint:
+  name: Google Photos Frame - Pause at Night
+  description: Automatically pause the photo frame at night and resume in the morning
+  domain: automation
+  input:
+    camera_entity:
+      name: Camera Entity
+      description: The Google Photos Frame camera entity
+      selector:
+        entity:
+          domain: camera
+          integration: google_photos_frame
+    pause_switch:
+      name: Pause Switch
+      description: The pause switch for the photo frame
+      selector:
+        entity:
+          domain: switch
+          integration: google_photos_frame
+    pause_time:
+      name: Pause Time
+      description: Time to pause the frame (24h format)
+      default: "22:00:00"
+      selector:
+        time:
+    resume_time:
+      name: Resume Time
+      description: Time to resume the frame (24h format)
+      default: "07:00:00"
+      selector:
+        time:
+
+trigger:
+  - platform: time
+    at: !input pause_time
+    id: pause
+  - platform: time
+    at: !input resume_time
+    id: resume
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: pause
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input pause_switch
+      - conditions:
+          - condition: trigger
+            id: resume
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input pause_switch

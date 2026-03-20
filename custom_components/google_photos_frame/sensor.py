@@ -6,17 +6,15 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-from .coordinator import GooglePhotosFrameCoordinator
+from .entity import GooglePhotosFrameEntity
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
 
     from . import GooglePhotosFrameConfigEntry
+
 
 SENSOR_DESCRIPTIONS = [
     SensorEntityDescription(
@@ -32,38 +30,32 @@ async def async_setup_entry(
     entry: GooglePhotosFrameConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Google Photos Frame sensor platform."""
+    """Set up sensor platform."""
     coordinator = entry.runtime_data
-    async_add_entities([GooglePhotosAlbumSensor(coordinator, entry)])
+    async_add_entities(
+        [
+            GooglePhotosFrameSensor(coordinator, entry, description)
+            for description in SENSOR_DESCRIPTIONS
+        ]
+    )
 
 
-class GooglePhotosAlbumSensor(SensorEntity):
-    """Sensor for album info."""
+class GooglePhotosFrameSensor(GooglePhotosFrameEntity, SensorEntity):
+    """Sensor entity for album information."""
 
-    _attr_has_entity_name = True
+    entity_description: SensorEntityDescription
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(
         self,
-        coordinator: GooglePhotosFrameCoordinator,
+        coordinator,
         entry: GooglePhotosFrameConfigEntry,
+        description: SensorEntityDescription,
     ) -> None:
         """Initialize sensor."""
-        self.coordinator = coordinator
-        self._attr_unique_id = f"{entry.entry_id}_album"
-        self.entity_description = SENSOR_DESCRIPTIONS[0]
-
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device info for grouping entities."""
-        if not self.coordinator.data:
-            return None
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.coordinator.data.album_id)},
-            name=self.coordinator.data.album_name,
-            manufacturer="Google",
-            model="Photos Album",
-        )
+        super().__init__(coordinator, entry)
+        self.entity_description = description
+        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
 
     @property
     def native_value(self) -> str | None:

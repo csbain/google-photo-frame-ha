@@ -37,7 +37,7 @@ class OAuth2FlowHandler(
 
     def __init__(self) -> None:
         """Initialize flow."""
-        self._albums: list[dict] = []
+        self._albums: list[tuple[str, str]] = []  # (id, title)
         self._client = None
 
     @property
@@ -52,6 +52,16 @@ class OAuth2FlowHandler(
 
         # Proceed to album selection
         return await self.async_step_album()
+
+    async def _fetch_albums(self) -> None:
+        """Fetch available albums."""
+        try:
+            from .api import GooglePhotosFrameClient
+            client = GooglePhotosFrameClient(self.hass, self._client)
+            albums = await client.async_get_albums()
+            self._albums = [(a["id"], a["title"]) for a in albums]
+        except Exception:
+            self._albums = []
 
     async def async_step_album(
         self, user_input: dict[str, Any] | None = None
@@ -80,7 +90,7 @@ class OAuth2FlowHandler(
             elif user_input.get("album_id"):
                 # Select existing album
                 album_name = next(
-                    (a["title"] for a in self._albums if a["id"] == user_input["album_id"]),
+                    (title for aid, title in self._albums if aid == user_input["album_id"]),
                     DEFAULT_ALBUM_NAME
                 )
                 return self.async_create_entry(
@@ -95,14 +105,9 @@ class OAuth2FlowHandler(
                 errors["base"] = "no_album_selected"
 
         # Fetch existing albums
-        try:
-            from .api import GooglePhotosFrameClient
-            client = GooglePhotosFrameClient(self.hass, self._client)
-            self._albums = await client.async_get_albums()
-        except Exception:
-            self._albums = []
+        await self._fetch_albums()
 
-        album_options = {a["id"]: a["title"] for a in self._albums}
+        album_options = {aid: title for aid, title in self._albums}
 
         schema = vol.Schema({
             vol.Optional("album_id"): vol.In(album_options) if album_options else str,
@@ -112,6 +117,48 @@ class OAuth2FlowHandler(
 
         return self.async_show_form(
             step_id="album",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"num_albums": str(len(self._albums))},
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration to change album."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            if user_input.get("album_id"):
+                album_name = next(
+                    (title for aid, title in self._albums if aid == user_input["album_id"]),
+                    ""
+                )
+                # Get current entry
+                entry = self.hass.config_entries.async_get_entry(
+                    self._get_reconfigure_entry_id()
+                )
+                if entry:
+                    new_data = {**entry.data}
+                    new_data[CONF_ALBUM_ID] = user_input["album_id"]
+                    new_data[CONF_ALBUM_NAME] = album_name
+                    self.hass.config_entries.async_update_entry(entry, data=new_data)
+                    await self.hass.config_entries.async_reload(entry.entry_id)
+                    return self.async_abort(reason="reconfigure_successful")
+            errors["base"] = "no_album_selected"
+
+        # Fetch available albums
+        await self._fetch_albums()
+
+        if not self._albums:
+            return self.async_abort(reason="no_albums")
+
+        schema = vol.Schema({
+            vol.Required("album_id"): vol.In({aid: title for aid, title in self._albums}),
+        })
+
+        return self.async_show_form(
+            step_id="reconfigure",
             data_schema=schema,
             errors=errors,
             description_placeholders={"num_albums": str(len(self._albums))},

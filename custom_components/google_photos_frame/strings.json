@@ -20,7 +20,9 @@
     },
     "abort": {
       "already_configured": "Account is already configured",
-      "oauth_error": "OAuth authentication failed"
+      "oauth_error": "OAuth authentication failed",
+      "reconfigure_successful": "Re-configuration was successful",
+      "no_albums": "No albums available to select"
     }
   },
   "options": {
@@ -32,6 +34,58 @@
           "max_photos": "Maximum Photos to Store"
         }
       }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "sync_status": {
+        "name": "Sync Status"
+      }
+    },
+    "button": {
+      "next_photo": {
+        "name": "Next Photo"
+      },
+      "previous_photo": {
+        "name": "Previous Photo"
+      },
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "number": {
+      "display_interval": {
+        "name": "Display Interval"
+      },
+      "refresh_interval": {
+        "name": "Refresh Interval"
+      }
+    },
+    "select": {
+      "fill_mode": {
+        "name": "Fill Mode"
+      },
+      "order_mode": {
+        "name": "Order Mode"
+      },
+      "aspect_ratio": {
+        "name": "Aspect Ratio"
+      }
+    },
+    "switch": {
+      "paused": {
+        "name": "Paused"
+      }
+    }
+  },
+  "issues": {
+    "auth_failed": {
+      "title": "Authentication failed",
+      "description": "Authentication with Google Photos has failed for entry {entry_id}. Please re-authenticate the integration."
+    },
+    "album_not_found": {
+      "title": "Album not found",
+      "description": "The configured album '{album_name}' could not be found. Please reconfigure the integration to select a different album."
     }
   }
 }

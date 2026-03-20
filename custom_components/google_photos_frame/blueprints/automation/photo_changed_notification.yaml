@@ -1,0 +1,41 @@
+blueprint:
+  name: Google Photos Frame - Photo Changed Notification
+  description: Send a notification when the displayed photo changes
+  domain: automation
+  input:
+    camera_entity:
+      name: Camera Entity
+      description: The Google Photos Frame camera entity
+      selector:
+        entity:
+          domain: camera
+          integration: google_photos_frame
+    notify_device:
+      name: Device to notify
+      description: Device to send notification to
+      selector:
+        device:
+          multiple: false
+    notify_title:
+      name: Notification Title
+      description: Title for the notification
+      default: "Photo Frame Updated"
+      selector:
+        text:
+
+trigger:
+  - platform: event
+    event_type: google_photos_frame_photo_changed
+    event_data:
+      entity_id: !input camera_entity
+
+action:
+  - device_id: !input notify_device
+    domain: mobile_app
+    type: notify
+    title: !input notify_title
+    message: >
+      Now showing photo {{ trigger.event.data.photo.filename }} ({{ trigger.event.data.photo_index + 1 }} of {{ trigger.event.data.total_photos }})
+    data:
+      image: >
+        {{ trigger.event.data.photo.url }}

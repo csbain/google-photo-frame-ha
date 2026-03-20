@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import TYPE_CHECKING
+import random
+from collections.abc import Callable
+from functools import wraps
+from typing import TYPE_CHECKING, Any
 
 from google_photos_library_api.api import GooglePhotosLibraryApi
 
@@ -13,6 +17,40 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
+
+# Retry constants
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 1.0
+RETRY_MAX_DELAY = 30.0
+RETRY_JITTER = 0.5
+
+
+def with_retry(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to retry API calls with exponential backoff."""
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        last_exception: Exception = Exception("Unknown error")
+        for attempt in range(MAX_RETRIES):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as err:
+                last_exception = err
+                if attempt < MAX_RETRIES - 1:
+                    # Exponential backoff with jitter
+                    delay = min(
+                        RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, RETRY_JITTER),
+                        RETRY_MAX_DELAY,
+                    )
+                    _LOGGER.warning(
+                        "API call failed (attempt %d/%d), retrying in %.1fs: %s",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        delay,
+                        err,
+                    )
+                    await asyncio.sleep(delay)
+        raise last_exception
+    return wrapper
 
 
 class GooglePhotosFrameClient:
@@ -28,6 +66,7 @@ class GooglePhotosFrameClient:
         self._session = session
         self._api = GooglePhotosLibraryApi(session)
 
+    @with_retry
     async def async_get_albums(self) -> list[dict]:
         """Get all app-created albums."""
         try:
@@ -40,6 +79,7 @@ class GooglePhotosFrameClient:
             _LOGGER.error("Failed to fetch albums: %s", err)
             raise
 
+    @with_retry
     async def async_create_album(self, title: str) -> dict:
         """Create a new album."""
         try:
@@ -49,6 +89,7 @@ class GooglePhotosFrameClient:
             _LOGGER.error("Failed to create album: %s", err)
             raise
 
+    @with_retry
     async def async_get_album_media(self, album_id: str) -> list[dict]:
         """Get all media items in an album."""
         try:
@@ -69,6 +110,7 @@ class GooglePhotosFrameClient:
             _LOGGER.error("Failed to fetch album media: %s", err)
             raise
 
+    @with_retry
     async def async_download_media(
         self,
         base_url: str,

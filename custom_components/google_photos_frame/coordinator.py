@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import GooglePhotosFrameClient
+from .issue_handler import async_create_auth_issue, async_delete_auth_issue
+from .cache_manager import CacheManager
 from .const import (
     CONF_ALBUM_ID,
     CONF_MAX_PHOTOS,
@@ -25,8 +28,10 @@ from .const import (
     PHOTOS_DIR,
     QUALITY_FULL,
     QUALITY_THUMBNAIL,
+    SHUFFLE_HISTORY_SIZE,
     STORAGE_DIR,
 )
+from .store import SettingsStore
 
 if TYPE_CHECKING:
     from . import GooglePhotosFrameConfigEntry
@@ -37,17 +42,20 @@ _LOGGER = logging.getLogger(__name__)
 @dataclass
 class MediaItem:
     """Represents a synced media item."""
+
     id: str
     filename: str
     local_path: str
     width: int | None
     height: int | None
     creation_time: str | None
+    url: str | None = None  # Download URL for on-demand fetching
 
 
 @dataclass
 class AlbumData:
     """Data stored by the coordinator."""
+
     album_id: str
     album_name: str
     media_items: list[MediaItem] = field(default_factory=list)
@@ -78,6 +86,16 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
         max_photos = entry.options.get(CONF_MAX_PHOTOS, DEFAULT_MAX_PHOTOS)
         self._max_photos = max_photos
 
+        # Runtime settings store
+        self.store = SettingsStore(entry=entry)
+
+        # Cache manager for resolution-based caching
+        self.cache_manager = CacheManager(hass, entry)
+
+        # Photo navigation state
+        self._current_index: int = 0
+        self._shuffle_history: list[str] = []
+
         super().__init__(
             hass,
             _LOGGER,
@@ -85,6 +103,19 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
             name="Google Photos Frame",
             update_interval=timedelta(minutes=sync_interval),
         )
+
+    @property
+    def update_interval_minutes(self) -> int:
+        """Get update interval in minutes."""
+        if self.update_interval:
+            return int(self.update_interval.total_seconds() / 60)
+        return DEFAULT_SYNC_INTERVAL
+
+    @update_interval_minutes.setter
+    def update_interval_minutes(self, value: int) -> None:
+        """Set update interval in minutes."""
+        self.update_interval = timedelta(minutes=value)
+        self._schedule_refresh()
 
     def _get_media_index_path(self) -> Path:
         """Get path to media index file."""
@@ -115,10 +146,12 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
         with open(index_path, "w") as f:
             json.dump(index, f, indent=2)
 
+    async def async_initialize(self) -> None:
+        """Initialize coordinator components."""
+        await self.cache_manager.async_initialize()
+
     def clear_cache(self) -> None:
         """Clear all cached photos and index."""
-        import shutil
-
         # Clear photos directory
         if self._photos_path.exists():
             for file_path in self._photos_path.glob("*"):
@@ -136,6 +169,9 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
                 _LOGGER.debug("Removed media index")
             except OSError as err:
                 _LOGGER.warning("Failed to remove index: %s", err)
+
+        # Clear resolution caches
+        self.hass.async_create_task(self.cache_manager.clear_all())
 
         _LOGGER.info("Cleared Google Photos Frame cache")
 
@@ -159,24 +195,29 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
             # Process media items
             synced_items: list[MediaItem] = []
             new_index: dict = {}
+            new_media_ids: set[str] = set()
 
-            for item in media_items[:self._max_photos]:
+            for item in media_items[: self._max_photos]:
                 media_id = item["id"]
                 media_hash = self._get_hash(media_id)
+                new_media_ids.add(media_id)
 
                 # Check if already downloaded
                 if media_id in media_index:
                     local_path = media_index[media_id]["local_path"]
                     # Verify file exists
                     if Path(local_path).exists():
-                        synced_items.append(MediaItem(
-                            id=media_id,
-                            filename=item["filename"],
-                            local_path=local_path,
-                            width=item["width"],
-                            height=item["height"],
-                            creation_time=item["creation_time"],
-                        ))
+                        synced_items.append(
+                            MediaItem(
+                                id=media_id,
+                                filename=item["filename"],
+                                local_path=local_path,
+                                width=item.get("width"),
+                                height=item.get("height"),
+                                creation_time=item.get("creation_time"),
+                                url=item.get("base_url"),
+                            )
+                        )
                         new_index[media_id] = media_index[media_id]
                         continue
 
@@ -198,36 +239,61 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
                     self._write_file, local_path, content
                 )
 
-                synced_items.append(MediaItem(
-                    id=media_id,
-                    filename=item["filename"],
-                    local_path=local_path,
-                    width=item["width"],
-                    height=item["height"],
-                    creation_time=item["creation_time"],
-                ))
+                synced_items.append(
+                    MediaItem(
+                        id=media_id,
+                        filename=item["filename"],
+                        local_path=local_path,
+                        width=item.get("width"),
+                        height=item.get("height"),
+                        creation_time=item.get("creation_time"),
+                        url=item.get("base_url"),
+                    )
+                )
                 new_index[media_id] = {
                     "local_path": local_path,
                     "hash": media_hash,
                 }
 
+            # Find removed media IDs
+            old_media_ids = set(media_index.keys())
+            removed_ids = list(old_media_ids - new_media_ids)
+
+            # Clean up orphaned files and cache entries
+            self._cleanup_orphans(new_index)
+
+            # Remove from cache manager
+            if removed_ids:
+                await self.cache_manager.remove_media(removed_ids)
+                _LOGGER.info("Removed %d photos from cache", len(removed_ids))
+
             # Save updated index
             self._save_media_index(new_index)
 
-            # Clean up orphaned files
-            self._cleanup_orphans(new_index)
+            # Queue background processing for new items
+            await self.cache_manager.queue_background_processing(synced_items)
+
+            # Clear any existing auth issue on successful sync
+            async_delete_auth_issue(self.hass, self._entry.entry_id)
 
             return AlbumData(
                 album_id=album_id,
                 album_name=self._entry.data.get("album_name", "Photo Frame"),
                 media_items=synced_items,
-                last_sync=datetime.now().isoformat(),
+                last_sync=datetime.now(timezone.utc).isoformat(),
                 media_count=len(synced_items),
             )
 
+        except ConfigEntryAuthFailed as err:
+            # Create repair issue for auth failure
+            async_create_auth_issue(self.hass, self._entry.entry_id)
+            raise
         except Exception as err:
             if "401" in str(err) or "unauthorized" in str(err).lower():
+                async_create_auth_issue(self.hass, self._entry.entry_id)
                 raise ConfigEntryAuthFailed(f"Authentication expired: {err}") from err
+            # Clear any existing auth issue on successful update path
+            async_delete_auth_issue(self.hass, self._entry.entry_id)
             raise UpdateFailed(f"Error syncing album: {err}") from err
 
     def _write_file(self, path: str, content: bytes) -> None:
@@ -245,3 +311,82 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
                     _LOGGER.debug("Removed orphaned file: %s", file_path)
                 except OSError as err:
                     _LOGGER.warning("Failed to remove orphan %s: %s", file_path, err)
+
+    def _select_random_photo(self) -> MediaItem | None:
+        """Select a random photo avoiding recent history."""
+        if not self.data or not self.data.media_items:
+            return None
+
+        items = self.data.media_items
+        available_ids = {item.id for item in items}
+
+        # Clean up history for items no longer in album
+        self._shuffle_history = [
+            hid for hid in self._shuffle_history if hid in available_ids
+        ]
+
+        # Get candidates not in recent history
+        candidates = [item for item in items if item.id not in self._shuffle_history]
+
+        # If all photos are in history, reset history
+        if not candidates:
+            self._shuffle_history.clear()
+            candidates = items
+
+        # Select random photo
+        selected = random.choice(candidates)
+
+        # Add to history
+        self._shuffle_history.append(selected.id)
+        if len(self._shuffle_history) > SHUFFLE_HISTORY_SIZE:
+            self._shuffle_history.pop(0)
+
+        self._current_index = items.index(selected)
+        return selected
+
+    async def async_next_photo(self) -> MediaItem | None:
+        """Advance to next photo based on order mode."""
+        if not self.data or not self.data.media_items:
+            return None
+
+        items = self.data.media_items
+
+        if self.store.order_mode == "random":
+            return self._select_random_photo()
+
+        # Sequential order
+        self._current_index += 1
+        if self._current_index >= len(items):
+            self._current_index = 0
+
+        return items[self._current_index]
+
+    async def async_previous_photo(self) -> MediaItem | None:
+        """Go to previous photo based on order mode."""
+        if not self.data or not self.data.media_items:
+            return None
+
+        items = self.data.media_items
+
+        if self.store.order_mode == "random":
+            # In random mode, just select another random photo
+            return self._select_random_photo()
+
+        # Sequential order
+        self._current_index -= 1
+        if self._current_index < 0:
+            self._current_index = len(items) - 1
+
+        return items[self._current_index]
+
+    def get_current_photo(self) -> MediaItem | None:
+        """Get the current photo."""
+        if not self.data or not self.data.media_items:
+            return None
+
+        if self._current_index < 0 or self._current_index >= len(
+            self.data.media_items
+        ):
+            self._current_index = 0
+
+        return self.data.media_items[self._current_index]

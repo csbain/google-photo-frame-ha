@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/python,node,jetbrains+all,intellij+all,sublimetext,visualstudiocode,git,homeassistant,virtualenv,venv,dotenv,windows,linux,osx
-# Edit at https://www.toptal.com/developers/gitignore?templates=python,node,jetbrains+all,intellij+all,sublimetext,visualstudiocode,git,homeassistant,virtualenv,venv,dotenv,windows,linux,osx
+# Created by https://www.toptal.com/developers/gitignore/api/git,osx,node,venv,linux,dotenv,windows,virtualenv,sublimetext,intellij+all,jetbrains+all,visualstudiocode,python
+# Edit at https://www.toptal.com/developers/gitignore?templates=git,osx,node,venv,linux,dotenv,windows,virtualenv,sublimetext,intellij+all,jetbrains+all,visualstudiocode,python
 
 ### dotenv ###
 .env
@@ -18,50 +18,6 @@
 *_BASE_*.txt
 *_LOCAL_*.txt
 *_REMOTE_*.txt
-
-### HomeAssistant ###
-# Files with personal details
-*.crt
-*.csr
-*.key
-.cloud
-.google.token
-.HA_VERSION
-.storage
-.uuid
-icloud/
-google_calendars.yaml
-harmony_media_room.conf
-home-assistant.db
-home-assistant_v2.db
-home-assistant_v2.db-*
-html5_push_registrations.conf
-image
-ip_bans.yaml
-known_devices.yaml
-phue.conf
-plex.conf
-pyozw.sqlite
-secrets.yaml
-tradfri.conf
-webostv.conf
-
-# Temporary files
-*.db-journal
-*.pid
-tts
-
-# automatically downloaded dependencies
-deps
-lib
-
-# Log files
-home-assistant.log
-home-assistant.log.*
-ozw_log.txt
-
-# Development files
-custom_components
 
 ### Intellij+all ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
@@ -236,6 +192,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Runtime data
 pids
+*.pid
 *.seed
 *.pid.lock
 
@@ -394,6 +351,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+**/__pycache__
+**/__pycache__/**
 # C extensions
 *.so
 
@@ -651,7 +610,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/python,node,jetbrains+all,intellij+all,sublimetext,visualstudiocode,git,homeassistant,virtualenv,venv,dotenv,windows,linux,osx
-
-
-.omc
+# End of https://www.toptal.com/developers/gitignore/api/git,osx,node,venv,linux,dotenv,windows,virtualenv,sublimetext,intellij+all,jetbrains+all,visualstudiocode,python
