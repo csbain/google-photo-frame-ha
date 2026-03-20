@@ -12,6 +12,10 @@
           "create_new": "Create New Album",
           "album_name": "New Album Name"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Album",
+        "description": "Select a different album for this frame. Found {num_albums} albums."
       }
     },
     "error": {
@@ -31,7 +35,9 @@
         "title": "Google Photos Frame Options",
         "data": {
           "sync_interval": "Sync Interval (minutes)",
-          "max_photos": "Maximum Photos to Store"
+          "max_photos": "Maximum Photos to Store",
+          "display_interval": "Display Interval (seconds)",
+          "shuffle_mode": "Shuffle Mode"
         }
       }
     }
@@ -96,6 +102,88 @@
     "album_not_found": {
       "title": "Album not found",
       "description": "The configured album '{album_name}' could not be found. Please reconfigure the integration to select a different album."
+    }
+  },
+  "services": {
+    "sync_now": {
+      "name": "Sync Now",
+      "description": "Trigger immediate sync of Google Photos album"
+    },
+    "get_current_photo": {
+      "name": "Get Current Photo",
+      "description": "Get the currently displayed photo without advancing",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional config entry ID (uses first available if not specified)"
+        }
+      }
+    },
+    "get_photos": {
+      "name": "Get Photos",
+      "description": "Get a list of all available photos in the album",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional config entry ID (uses first available if not specified)"
+        },
+        "limit": {
+          "name": "Limit",
+          "description": "Maximum number of photos to return (1-500, default 100)"
+        },
+        "offset": {
+          "name": "Offset",
+          "description": "Number of photos to skip from the beginning (default 0)"
+        }
+      }
+    },
+    "next_photo": {
+      "name": "Next Photo",
+      "description": "Go to the next photo and return its info. Respects shuffle mode.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional config entry ID (uses first available if not specified)"
+        }
+      }
+    },
+    "previous_photo": {
+      "name": "Previous Photo",
+      "description": "Go to the previous photo and return its info. Respects shuffle mode.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional config entry ID (uses first available if not specified)"
+        }
+      }
+    },
+    "set_photo": {
+      "name": "Set Photo",
+      "description": "Jump to a specific photo by index or ID",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Config entry ID (required)"
+        },
+        "photo_index": {
+          "name": "Photo Index",
+          "description": "Zero-based index of the photo to display"
+        },
+        "photo_id": {
+          "name": "Photo ID",
+          "description": "ID of the photo to display (use either index or ID, not both)"
+        }
+      }
+    },
+    "clear_cache": {
+      "name": "Clear Cache",
+      "description": "Clear cached photos and processed images from disk",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional config entry ID (clears all if not specified)"
+        }
+      }
     }
   }
 }

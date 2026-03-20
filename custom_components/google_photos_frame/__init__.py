@@ -50,14 +50,11 @@ async def async_setup_entry(
 
     entry.runtime_data = coordinator
 
-    # Store coordinator for platform access
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register services (only once)
-    if len(hass.data[DOMAIN]) == 1:
+    # Register services (only once for first entry)
+    loaded_entries = hass.config_entries.async_loaded_entries(DOMAIN)
+    if len(loaded_entries) == 1:
         from .services import async_setup_services
 
         await async_setup_services(hass)
@@ -77,10 +74,9 @@ async def async_unload_entry(
         _LOGGER.info("Cleared cache for unloaded entry %s", entry.entry_id)
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-
         # Unregister services when last entry is removed
-        if not hass.data[DOMAIN]:
+        loaded_entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not loaded_entries:
             from .services import async_unload_services
             await async_unload_services(hass)
 

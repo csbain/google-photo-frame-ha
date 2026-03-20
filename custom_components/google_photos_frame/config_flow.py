@@ -45,7 +45,7 @@ class OAuth2FlowHandler(
         """Return logger."""
         return f"{DOMAIN}.config_flow"
 
-    async def async_oauth_create_entry(self, data: dict) -> FlowResult:
+    async def async_oauth_create_entry(self, data: dict[str, Any]) -> FlowResult:
         """Create entry from OAuth2 flow."""
         # Store the OAuth token data
         self._client = self.flow_impl.get_client(self.hass, data)
