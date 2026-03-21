@@ -1,5 +1,6 @@
 # Google Photos Frame - Home Assistant Integration
 
+
 A Home Assistant integration that syncs photos from Google Photos to local storage for photo frame display.
 
 ## Features
