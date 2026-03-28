@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -27,6 +28,8 @@ from .const import (
     OAUTH2_SCOPES,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class OAuth2FlowHandler(
     config_entry_oauth2_flow.AbstractOAuth2FlowHandler,
@@ -51,11 +54,6 @@ class OAuth2FlowHandler(
         """Initialize flow."""
         self._albums: list[tuple[str, str]] = []  # (id, title)
         self._client = None
-
-    @property
-    def logger(self) -> str:
-        """Return logger."""
-        return f"{DOMAIN}.config_flow"
 
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> FlowResult:
         """Create entry from OAuth2 flow."""
