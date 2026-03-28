@@ -37,7 +37,12 @@ class OAuth2FlowHandler(
     VERSION = 1
 
     # Google Photos API scope - full access for reading and creating albums
-    DEFAULT_SCOPE = "https://www.googleapis.com/auth/photoslibrary"
+    SCOPE = ["https://www.googleapis.com/auth/photoslibrary"]
+
+    @property
+    def extra_authorize_url_params(self) -> dict[str, Any]:
+        """Return extra authorize url params."""
+        return {"scope": " ".join(self.SCOPE)}
 
     def __init__(self) -> None:
         """Initialize flow."""
