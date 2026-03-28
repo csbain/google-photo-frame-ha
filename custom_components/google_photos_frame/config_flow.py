@@ -53,7 +53,7 @@ class OAuth2FlowHandler(
     def __init__(self) -> None:
         """Initialize flow."""
         self._albums: list[tuple[str, str]] = []  # (id, title)
-        self._client = None
+        self.token_data: dict[str, Any] = {}
 
     @property
     def logger(self) -> logging.Logger:
@@ -62,17 +62,53 @@ class OAuth2FlowHandler(
 
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> FlowResult:
         """Create entry from OAuth2 flow."""
-        # Store the OAuth token data
-        self._client = self.flow_impl.get_client(self.hass, data)
+        # Store the OAuth token data for use in album step
+        self.token_data = data
 
         # Proceed to album selection
         return await self.async_step_album()
 
+    def _get_api_client(self):
+        """Get API client for config flow using token data."""
+        from .api import GooglePhotosFrameClient
+
+        # Get token data - either from initial setup or reconfigure
+        token_data = self.token_data
+        if not token_data:
+            # Try to get from reconfigure entry
+            try:
+                entry_id = self._get_reconfigure_entry_id()
+                entry = self.hass.config_entries.async_get_entry(entry_id)
+                if entry:
+                    token_data = entry.data
+            except (AttributeError, TypeError):
+                pass
+
+        if not token_data:
+            raise ValueError("No token data available")
+
+        # Create a simple session wrapper for the config flow
+        class ConfigFlowOAuth2Session:
+            """Minimal OAuth2Session wrapper for config flow."""
+
+            def __init__(self, token: dict) -> None:
+                self._token = token
+
+            @property
+            def token(self) -> dict:
+                return self._token
+
+            async def async_ensure_token_valid(self) -> bool:
+                """Token is fresh during config flow."""
+                return True
+
+        session = ConfigFlowOAuth2Session(token_data)
+        return GooglePhotosFrameClient(self.hass, session)
+
     async def _fetch_albums(self) -> None:
         """Fetch available albums."""
         try:
-            from .api import GooglePhotosFrameClient
-            client = GooglePhotosFrameClient(self.hass, self._client)
+            client = self._get_api_client()
             albums = await client.async_get_albums()
             self._albums = [(a["id"], a["title"]) for a in albums]
         except Exception:
@@ -89,8 +125,7 @@ class OAuth2FlowHandler(
                 # Create new album
                 album_name = user_input.get("album_name", DEFAULT_ALBUM_NAME)
                 try:
-                    from .api import GooglePhotosFrameClient
-                    client = GooglePhotosFrameClient(self.hass, self._client)
+                    client = self._get_api_client()
                     album = await client.async_create_album(album_name)
                     return self.async_create_entry(
                         title=f"Google Photos Frame ({album_name})",
