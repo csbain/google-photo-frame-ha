@@ -55,6 +55,11 @@ class OAuth2FlowHandler(
         self._albums: list[tuple[str, str]] = []  # (id, title)
         self._client = None
 
+    @property
+    def logger(self) -> logging.Logger:
+        """Return logger."""
+        return _LOGGER
+
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> FlowResult:
         """Create entry from OAuth2 flow."""
         # Store the OAuth token data
