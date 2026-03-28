@@ -70,6 +70,7 @@ class OAuth2FlowHandler(
 
     def _get_api_client(self):
         """Get API client for config flow using token data."""
+        import aiohttp
         from .api import GooglePhotosFrameClient
 
         # Get token data - either from initial setup or reconfigure
@@ -87,11 +88,12 @@ class OAuth2FlowHandler(
         if not token_data:
             raise ValueError("No token data available")
 
-        # Create a simple session wrapper for the config flow
-        class ConfigFlowOAuth2Session:
-            """Minimal OAuth2Session wrapper for config flow."""
+        # Create an aiohttp session with auth headers for config flow
+        class ConfigFlowOAuth2Session(aiohttp.ClientSession):
+            """OAuth2 session for config flow with auth headers."""
 
-            def __init__(self, token: dict) -> None:
+            def __init__(self, token: dict, *args, **kwargs) -> None:
+                super().__init__(*args, **kwargs)
                 self._token = token
 
             @property
@@ -101,6 +103,20 @@ class OAuth2FlowHandler(
             async def async_ensure_token_valid(self) -> bool:
                 """Token is fresh during config flow."""
                 return True
+
+            def _add_auth_header(self, kwargs: dict) -> None:
+                """Add authorization header to request kwargs."""
+                headers = kwargs.setdefault("headers", {})
+                if "Authorization" not in headers:
+                    headers["Authorization"] = f"Bearer {self._token['access_token']}"
+
+            async def get(self, url, **kwargs):
+                self._add_auth_header(kwargs)
+                return await super().get(url, **kwargs)
+
+            async def post(self, url, **kwargs):
+                self._add_auth_header(kwargs)
+                return await super().post(url, **kwargs)
 
         session = ConfigFlowOAuth2Session(token_data)
         return GooglePhotosFrameClient(self.hass, session)
