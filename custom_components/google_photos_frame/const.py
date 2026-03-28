@@ -65,3 +65,6 @@ CACHE_MAX_ITEMS: Final = 120  # Max items in download cache
 
 # Shuffle settings
 SHUFFLE_HISTORY_SIZE: Final = 20  # Number of recent photos to avoid repeating
+
+# OAuth2 Scopes for Google Photos API
+OAUTH2_SCOPES: Final = ["https://www.googleapis.com/auth/photoslibrary"]
