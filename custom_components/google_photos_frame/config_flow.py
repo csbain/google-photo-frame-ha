@@ -36,6 +36,9 @@ class OAuth2FlowHandler(
     DOMAIN = DOMAIN
     VERSION = 1
 
+    # Google Photos API scopes
+    DEFAULT_SCOPE = "https://www.googleapis.com/auth/photoslibrary.readonly"
+
     def __init__(self) -> None:
         """Initialize flow."""
         self._albums: list[tuple[str, str]] = []  # (id, title)
