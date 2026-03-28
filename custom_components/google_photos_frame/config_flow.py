@@ -36,8 +36,8 @@ class OAuth2FlowHandler(
     DOMAIN = DOMAIN
     VERSION = 1
 
-    # Google Photos API scopes
-    DEFAULT_SCOPE = "https://www.googleapis.com/auth/photoslibrary.readonly"
+    # Google Photos API scope - full access for reading and creating albums
+    DEFAULT_SCOPE = "https://www.googleapis.com/auth/photoslibrary"
 
     def __init__(self) -> None:
         """Initialize flow."""
