@@ -33,6 +33,7 @@ class OAuth2FlowHandler(
 ):
     """Config flow for Google Photos Frame using OAuth2."""
 
+    DOMAIN = DOMAIN
     VERSION = 1
 
     def __init__(self) -> None:
