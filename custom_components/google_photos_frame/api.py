@@ -10,6 +10,8 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 from google_photos_library_api.api import GooglePhotosLibraryApi
+from google_photos_library_api.auth import AbstractAuth
+from google_photos_library_api.model import NewAlbum
 
 from homeassistant.helpers import config_entry_oauth2_flow
 
@@ -53,18 +55,49 @@ def with_retry(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+class AsyncConfigEntryAuth(AbstractAuth):
+    """Auth wrapper for runtime use with OAuth2Session."""
+
+    def __init__(
+        self,
+        websession: Any,
+        oauth_session: config_entry_oauth2_flow.OAuth2Session,
+    ) -> None:
+        """Initialize."""
+        super().__init__(websession)
+        self._session = oauth_session
+
+    async def async_get_access_token(self) -> str:
+        """Return a valid access token."""
+        await self._session.async_ensure_token_valid()
+        return str(self._session.token["access_token"])
+
+
+class AsyncConfigFlowAuth(AbstractAuth):
+    """Auth wrapper for config flow with a fixed access token."""
+
+    def __init__(self, websession: Any, access_token: str) -> None:
+        """Initialize."""
+        super().__init__(websession)
+        self._access_token = access_token
+
+    async def async_get_access_token(self) -> str:
+        """Return the access token."""
+        return self._access_token
+
+
 class GooglePhotosFrameClient:
     """Wrapper for Google Photos Library API with error handling."""
 
     def __init__(
         self,
         hass: HomeAssistant,
-        session: config_entry_oauth2_flow.OAuth2Session,
+        auth: AbstractAuth,
     ) -> None:
         """Initialize the API client."""
         self._hass = hass
-        self._session = session
-        self._api = GooglePhotosLibraryApi(session)
+        self._auth = auth
+        self._api = GooglePhotosLibraryApi(auth)
 
     @with_retry
     async def async_get_albums(self) -> list[dict]:
@@ -83,7 +116,7 @@ class GooglePhotosFrameClient:
     async def async_create_album(self, title: str) -> dict:
         """Create a new album."""
         try:
-            album = await self._api.create_album(title)
+            album = await self._api.create_album(NewAlbum(title=title))
             return {"id": album.id, "title": album.title, "media_count": 0}
         except Exception as err:
             _LOGGER.error("Failed to create album: %s", err)
@@ -93,7 +126,7 @@ class GooglePhotosFrameClient:
     async def async_get_album_media(self, album_id: str) -> list[dict]:
         """Get all media items in an album."""
         try:
-            result = await self._api.search_media_items(album_id=album_id)
+            result = await self._api.list_media_items(album_id=album_id)
             items = []
             for item in result.media_items:
                 items.append({
@@ -124,7 +157,8 @@ class GooglePhotosFrameClient:
             url = f"{base_url}=d"
             if width or height:
                 url = f"{base_url}=w{width or height}-h{height or width}"
-            return await self._api.get_media_item_content(url)
+            resp = await self._auth.get(url)
+            return await resp.read()
         except Exception as err:
             _LOGGER.error("Failed to download media %s: %s", media_id, err)
             raise

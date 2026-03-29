@@ -67,4 +67,12 @@ CACHE_MAX_ITEMS: Final = 120  # Max items in download cache
 SHUFFLE_HISTORY_SIZE: Final = 20  # Number of recent photos to avoid repeating
 
 # OAuth2 Scopes for Google Photos API
-OAUTH2_SCOPES: Final = ["https://www.googleapis.com/auth/photoslibrary"]
+# Google removed photoslibrary.readonly on March 31, 2025. Only app-created
+# content scopes remain. Workflow: integration creates album, user adds photos
+# via Google Photos app, integration syncs app-created album content.
+# - readonly.appcreateddata: read albums/photos created by this app
+# - appendonly: create albums and upload photos
+OAUTH2_SCOPES: Final = [
+    "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
+    "https://www.googleapis.com/auth/photoslibrary.appendonly",
+]

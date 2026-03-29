@@ -70,8 +70,9 @@ class OAuth2FlowHandler(
 
     def _get_api_client(self):
         """Get API client for config flow using token data."""
-        import aiohttp
-        from .api import GooglePhotosFrameClient
+        from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+        from .api import AsyncConfigFlowAuth, GooglePhotosFrameClient
 
         # Get token data - either from initial setup or reconfigure
         token_data = self.token_data
@@ -88,38 +89,12 @@ class OAuth2FlowHandler(
         if not token_data:
             raise ValueError("No token data available")
 
-        # Create an aiohttp session with auth headers for config flow
-        class ConfigFlowOAuth2Session(aiohttp.ClientSession):
-            """OAuth2 session for config flow with auth headers."""
+        # HA passes token data as {"auth_implementation": ..., "token": {"access_token": ...}}
+        access_token = token_data["token"]["access_token"]
 
-            def __init__(self, token: dict, *args, **kwargs) -> None:
-                super().__init__(*args, **kwargs)
-                self._token = token
-
-            @property
-            def token(self) -> dict:
-                return self._token
-
-            async def async_ensure_token_valid(self) -> bool:
-                """Token is fresh during config flow."""
-                return True
-
-            def _add_auth_header(self, kwargs: dict) -> None:
-                """Add authorization header to request kwargs."""
-                headers = kwargs.setdefault("headers", {})
-                if "Authorization" not in headers:
-                    headers["Authorization"] = f"Bearer {self._token['access_token']}"
-
-            async def get(self, url, **kwargs):
-                self._add_auth_header(kwargs)
-                return await super().get(url, **kwargs)
-
-            async def post(self, url, **kwargs):
-                self._add_auth_header(kwargs)
-                return await super().post(url, **kwargs)
-
-        session = ConfigFlowOAuth2Session(token_data)
-        return GooglePhotosFrameClient(self.hass, session)
+        websession = async_get_clientsession(self.hass)
+        auth = AsyncConfigFlowAuth(websession, access_token)
+        return GooglePhotosFrameClient(self.hass, auth)
 
     async def _fetch_albums(self) -> None:
         """Fetch available albums."""

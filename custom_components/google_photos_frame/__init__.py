@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import GooglePhotosFrameClient
+from .api import AsyncConfigEntryAuth, GooglePhotosFrameClient
 from .const import DOMAIN
 from .coordinator import GooglePhotosFrameCoordinator
 
@@ -42,7 +43,8 @@ async def async_setup_entry(
     )
 
     session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
-    client = GooglePhotosFrameClient(hass, session)
+    auth = AsyncConfigEntryAuth(async_get_clientsession(hass), session)
+    client = GooglePhotosFrameClient(hass, auth)
 
     coordinator = GooglePhotosFrameCoordinator(hass, entry, client)
     await coordinator.async_initialize()
