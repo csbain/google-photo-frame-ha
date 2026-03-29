@@ -167,7 +167,9 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
             media_items = await self._client.async_get_album_media(album_id)
 
             # Load existing index
-            media_index = self._load_media_index()
+            media_index = await self.hass.async_add_executor_job(
+                self._load_media_index
+            )
 
             # Process media items
             synced_items: list[MediaItem] = []
@@ -237,7 +239,9 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
             removed_ids = list(old_media_ids - new_media_ids)
 
             # Clean up orphaned files and cache entries
-            self._cleanup_orphans(new_index)
+            await self.hass.async_add_executor_job(
+                self._cleanup_orphans, new_index
+            )
 
             # Remove from cache manager
             if removed_ids:
@@ -245,7 +249,9 @@ class GooglePhotosFrameCoordinator(DataUpdateCoordinator[AlbumData]):
                 _LOGGER.info("Removed %d photos from cache", len(removed_ids))
 
             # Save updated index
-            self._save_media_index(new_index)
+            await self.hass.async_add_executor_job(
+                self._save_media_index, new_index
+            )
 
             # Queue background processing for new items
             await self.cache_manager.queue_background_processing(synced_items)
